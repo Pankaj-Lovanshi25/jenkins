@@ -18,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/Pankaj-Lovanshi25/jenkins/issues"
   },
-  "homepage": "https://github.com/Pankaj-Lovanshi25/jenkins#readme"
+  "homepage": "https://github.com/Pankaj-Lovanshi25/jenkins#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
 }

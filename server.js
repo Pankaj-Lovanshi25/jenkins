@@ -8,7 +8,7 @@ const express = require("express");
 const app = express();
 
 app.get("/test", (req, res) => {
-  res.send("OK");
+  res.send("server is runing  at port 5002");
 });
 
 app.listen(5002, () => {

@@ -4,7 +4,7 @@ const express = require("express");
 const app = express();
 
 app.get("/test", (req, res) => {
-  res.send("server is runing  at port 5005");
+  res.send("server is runing  at port 5006");
 });
 
 app.get("/test2" ,(req , res)=>{
@@ -12,16 +12,16 @@ app.get("/test2" ,(req , res)=>{
 })
 
 app.get("/home", (req, res)=>{
-  res.send("welcome to home page of server 5005")
+  res.send("welcome to home page of server 5006")
 })
 
 
 app.get("/about", (req, res)=>{
-  res.send("welcome to about page of server 5005")
+  res.send("welcome to about page of server 5006")
 })
 
-app.listen(5005, () => {
-  console.log("Server running on 5005");
+app.listen(5006, () => {
+  console.log("Server running on 5006");
 });
 
 setInterval(() => {

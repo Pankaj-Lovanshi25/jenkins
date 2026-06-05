@@ -1,7 +1,3 @@
-console.log("Hello jenkins")
-console.log("hello ")
-console.log("webhook test 2")
-console.log("webhook test 3")
 
 
 const express = require("express");
@@ -12,14 +8,9 @@ app.get("/test", (req, res) => {
 });
 
 app.get("/test2" ,(req , res)=>{
-  res.send("test2 is working")
+  res.send("test 2 is working fine")
 })
 
 app.listen(5002, () => {
   console.log("Server running on 5002");
 });
-
-
-setInterval(() => {
-  console.log("alive");
-}, 10000);

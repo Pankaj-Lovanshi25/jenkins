@@ -38,8 +38,7 @@ pipeline {
                 if not exist C:\\pm2\\logs mkdir C:\\pm2\\logs
                 if not exist C:\\pm2\\pids mkdir C:\\pm2\\pids
 
-                "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" delete node-app
-                "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" start server.js --name node-app
+                "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" restart node-app --update-env || "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" start server.js --name node-app
                 '''
             }
         }

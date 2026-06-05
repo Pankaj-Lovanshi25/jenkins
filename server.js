@@ -11,7 +11,7 @@ app.get("/test", (req, res) => {
   res.send("server is runing  at port 5002");
 });
 
-app.get("test2" ,(req , res)=>{
+app.get("/test2" ,(req , res)=>{
   res.send("test2 is working")
 })
 

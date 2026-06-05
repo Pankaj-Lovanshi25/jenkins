@@ -16,6 +16,10 @@ app.get("/home", (req, res)=>{
 })
 
 
+app.get("/about", (req, res)=>{
+  res.send("welcome to about page of server 5005")
+})
+
 app.listen(5005, () => {
   console.log("Server running on 5005");
 });

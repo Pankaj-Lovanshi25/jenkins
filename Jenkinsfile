@@ -31,11 +31,9 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                bat '''
-                pm2 delete node-app || exit /b 0
-                pm2 start server.js --name node-app
-                pm2 save
-                '''
+                bat '"C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" delete node-app'
+                bat '"C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" start server.js --name node-app'
+                bat '"C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" save'
             }
         }
     }

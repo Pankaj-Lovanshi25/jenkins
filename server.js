@@ -14,3 +14,7 @@ app.get("/test2" ,(req , res)=>{
 app.listen(5002, () => {
   console.log("Server running on 5002");
 });
+
+setInterval(() => {
+  console.log("alive");
+}, 10000);

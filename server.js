@@ -8,6 +8,7 @@ app.get("/test", (req, res) => {
 });
 
 app.get("/test2" ,(req , res)=>{
+  console.log("test 2 is working fine")
   res.send("test 2 is working fine")
 })
 

@@ -12,7 +12,7 @@ app.get("/test2" ,(req , res)=>{
 })
 
 app.get("/home", (req, res)=>{
-  res.send("welcome to home page of server 5006")
+  res.send("welcome to home ")
 })
 
 

@@ -79,45 +79,44 @@ pipeline {
     agent any
 
     environment {
-        GROQ_API_KEY  = credentials("GROQ_API_KEY")
+        GROQ_API_KEY = credentials('GROQ_API_KEY')
     }
 
-    stages{
-        stage('Checkout'){
-            steps{
+    stages {
+        stage('Checkout') {
+            steps {
                 checkout scm
             }
         }
 
-        stage('Install Dependencies'){
-         steps{
-            bat 'npm install'
-         }
+        stage('Install Dependencies') {
+            steps {
+                bat 'npm ci'
+            }
         }
-        stage('Run Basic Check'){
-             steps{
+
+        stage('Run Basic Check') {
+            steps {
                 bat 'npm test'
             }
         }
 
-        stage('AI Code Review'){
-            steps{
+        stage('AI Code Review') {
+            steps {
                 bat 'node reviewCode.js'
             }
         }
-           
     }
 
-post {
-    always{
-        echo 'pipeline completed.'
+    post {
+        always {
+            echo 'pipeline completed.'
+        }
+        success {
+            echo 'PR is ready for review.'
+        }
+        failure {
+            echo 'Pipeline failed. Check AI review or test output.'
+        }
     }
-    success{
-        echo 'PR is ready for review.'
-    }
-    failure{
-        echo 'Pipeline failed. Check AI review or test output'
-    }
-}
-
 }

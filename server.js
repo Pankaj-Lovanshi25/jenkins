@@ -17,7 +17,7 @@ app.get("/home", (req, res) => {
 });
 
 app.get("/about", (req, res) => {
-  res.send("welcome to about page of server 5005");
+  res.send("welcome to about page of server");
 });
 
 app.listen(PORT, () => {

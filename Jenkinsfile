@@ -106,7 +106,8 @@ pipeline {
                         }
                     } catch (err) {
                         if (err.getMessage()?.contains('GROQ_API_KEY')) {
-                            echo 'Skipping AI Code Review because the GROQ_API_KEY credential is not configured.'
+                            echo 'GROQ_API_KEY credential is not configured in Jenkins. Retrying review with local .env support.'
+                            bat 'node reviewCode.js'
                         } else {
                             throw err
                         }

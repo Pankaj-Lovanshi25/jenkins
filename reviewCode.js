@@ -116,7 +116,8 @@ function readFilesWithLineNumbers(files) {
 
 async function reviewCode() {
   if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY is missing. Add it to Jenkins credentials or .env.");
+    console.log("GROQ_API_KEY is missing. Skipping AI review.");
+    return;
   }
 
   const filesToReview = getChangedFiles();

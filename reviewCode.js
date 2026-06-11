@@ -57,7 +57,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const FALLBACK_FILES = ["Jenkinsfile", "server.js", "reviewCode.js", "package.json", "README.md"];
-
+console.log("API Key Found:", !!process.env.GROQ_API_KEY);
 function runGit(command) {
   return execSync(command, {
     cwd: __dirname,

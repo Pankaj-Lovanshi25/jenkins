@@ -78,10 +78,6 @@
 pipeline {
     agent any
 
-    environment {
-        GROQ_API_KEY = credentials('GROQ_API_KEY')
-    }
-
     stages {
         stage('Checkout') {
             steps {
@@ -103,7 +99,19 @@ pipeline {
 
         stage('AI Code Review') {
             steps {
-                bat 'node reviewCode.js'
+                script {
+                    try {
+                        withCredentials([string(credentialsId: 'GROQ_API_KEY', variable: 'GROQ_API_KEY')]) {
+                            bat 'node reviewCode.js'
+                        }
+                    } catch (err) {
+                        if (err.getMessage()?.contains('GROQ_API_KEY')) {
+                            echo 'Skipping AI Code Review because the GROQ_API_KEY credential is not configured.'
+                        } else {
+                            throw err
+                        }
+                    }
+                }
             }
         }
     }

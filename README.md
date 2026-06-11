@@ -27,4 +27,5 @@ npm run review
 
 - Create a Jenkins secret text credential with ID `GROQ_API_KEY`.
 - The pipeline uses `npm ci` for reproducible installs.
+- If `GROQ_API_KEY` is missing, the AI review stage is skipped and the build continues.
 - The AI review script prefers changed files, then falls back to core project files.

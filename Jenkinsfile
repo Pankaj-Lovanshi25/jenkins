@@ -175,12 +175,15 @@ pipeline {
 
        stage('Deploy') {
     steps {
-        bat '''
-        pm2 delete node-app >nul 2>&1
-        pm2 start server.js --name node-app
-        pm2 save
-        pm2 list
-        '''
+         bat '''
+                set PM2_HOME=C:\\pm2
+
+                if not exist C:\\pm2 mkdir C:\\pm2
+                if not exist C:\\pm2\\logs mkdir C:\\pm2\\logs
+                if not exist C:\\pm2\\pids mkdir C:\\pm2\\pids
+
+                "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" restart node-app --update-env || "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" start server.js --name node-app
+                '''
     }
 }
     }

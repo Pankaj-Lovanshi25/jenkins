@@ -173,21 +173,16 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
-            steps {
-                bat '''
-                echo Deploying application...
-
-                rem Kill old node process if running
-                taskkill /F /IM node.exe >nul 2>&1
-
-                rem Start application in background
-                start /B npm start
-
-                echo Application deployed successfully.
-                '''
-            }
-        }
+       stage('Deploy') {
+    steps {
+        bat '''
+        pm2 delete node-app >nul 2>&1
+        pm2 start server.js --name node-app
+        pm2 save
+        pm2 list
+        '''
+    }
+}
     }
 
     post {

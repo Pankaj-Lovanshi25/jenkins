@@ -2,7 +2,8 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 5005;
-console.log(process.env.PORT ) 
+const HOST = process.env.HOST || "0.0.0.0";
+
 app.get("/test", (req, res) => {
   res.status(200).send(`server is running at port ${PORT}`);
 });
@@ -10,6 +11,13 @@ app.get("/test", (req, res) => {
 app.get("/test2", (req, res) => {
   console.log("test 2 is working fine");
   res.send("test 2 is working fine");
+});
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    port: PORT
+  });
 });
 
 app.get("/home", (req, res) => {
@@ -20,6 +28,6 @@ app.get("/about", (req, res) => {
   res.send("welcome to about page of server");
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 });

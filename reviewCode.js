@@ -300,7 +300,17 @@ async function reviewCode() {
   );
 
   console.log("\n=== AI CODE REVIEW REPORT ===\n");
-  console.log(response.data.choices[0].message.content);
+  // console.log(response.data.choices[0].message.content);
+    const review = response.data.choices[0].message.content;
+
+    console.log(review);
+
+    fs.writeFileSync(
+      path.join(__dirname, "review.txt"),
+      review,
+      "utf8"
+    );
+
 }
 
 reviewCode().catch((error) => {

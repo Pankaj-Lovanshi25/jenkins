@@ -130,12 +130,16 @@
 //     }
 // }
 
-
-
 pipeline {
     agent any
 
+    environment {
+        GITHUB_OWNER = 'Pankaj-Lovanshi25'
+        GITHUB_REPO  = 'jenkins'
+    }
+
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -158,12 +162,17 @@ pipeline {
             steps {
                 script {
                     try {
-                        withCredentials([string(credentialsId: 'GROQ_API_KEY', variable: 'GROQ_API_KEY')]) {
+                        withCredentials([
+                            string(
+                                credentialsId: 'GROQ_API_KEY',
+                                variable: 'GROQ_API_KEY'
+                            )
+                        ]) {
                             bat 'node reviewCode.js'
                         }
                     } catch (err) {
                         if (err.getMessage()?.contains('GROQ_API_KEY')) {
-                            echo 'GROQ_API_KEY credential is not configured in Jenkins. Retrying review with local .env support.'
+                            echo 'GROQ_API_KEY credential is not configured.'
                             bat 'node reviewCode.js'
                         } else {
                             throw err
@@ -173,27 +182,26 @@ pipeline {
             }
         }
 
-       stage('Deploy') {
-    steps {
-         bat '''
-                set "PM2_HOME=C:\\pm2"
+        stage('Post PR Comment') {
+            steps {
+                withCredentials([
+                    string(
+                        credentialsId: 'GITHUB_TOKEN',
+                        variable: 'GITHUB_TOKEN'
+                    )
+                ]) {
+                    bat 'node githubComment.js'
+                }
+            }
+        }
 
-                if not exist C:\\pm2 mkdir C:\\pm2
-                if not exist C:\\pm2\\logs mkdir C:\\pm2\\logs
-                if not exist C:\\pm2\\pids mkdir C:\\pm2\\pids
-
-                call "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" describe node-app >nul 2>&1
-                if errorlevel 1 (
-                    call "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" start server.js --name node-app --update-env
-                ) else (
-                    call "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" restart node-app --update-env
-                )
-
-                call "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" save
-                call "C:\\Users\\HP\\AppData\\Roaming\\npm\\pm2.cmd" list
+        stage('Deploy') {
+            steps {
+                bat '''
+                REM PM2 Commands
                 '''
-    }
-}
+            }
+        }
     }
 
     post {
@@ -204,7 +212,7 @@ pipeline {
             echo 'PR is ready for review.'
         }
         failure {
-            echo 'Pipeline failed. Check AI review or test output.'
+            echo 'Pipeline failed.'
         }
     }
 }

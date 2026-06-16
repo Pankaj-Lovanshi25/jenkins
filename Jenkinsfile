@@ -159,30 +159,27 @@ pipeline {
         }
 
         stage('AI Code Review') {
+            when {
+                changeRequest()
+            }
             steps {
                 script {
-                    try {
-                        withCredentials([
-                            string(
-                                credentialsId: 'GROQ_API_KEY',
-                                variable: 'GROQ_API_KEY'
-                            )
-                        ]) {
-                            bat 'node reviewCode.js'
-                        }
-                    } catch (err) {
-                        if (err.getMessage()?.contains('GROQ_API_KEY')) {
-                            echo 'GROQ_API_KEY credential is not configured.'
-                            bat 'node reviewCode.js'
-                        } else {
-                            throw err
-                        }
+                    withCredentials([
+                        string(
+                            credentialsId: 'GROQ_API_KEY',
+                            variable: 'GROQ_API_KEY'
+                        )
+                    ]) {
+                        bat 'node reviewCode.js'
                     }
                 }
             }
         }
 
         stage('Post PR Comment') {
+            when {
+                changeRequest()
+            }
             steps {
                 withCredentials([
                     string(

@@ -12,7 +12,9 @@ app.get("/test2", (req, res) => {
   console.log("test 2 is working fine");
   res.send("test 2 is working fine");
 });
-
+app.get("/version", (req, res) => {
+  res.send("AI Review Test");
+});
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "ok",

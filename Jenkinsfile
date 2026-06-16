@@ -160,7 +160,7 @@ pipeline {
 
         stage('AI Code Review') {
             when {
-                changeRequest()
+                expression { return env.BRANCH_NAME && env.BRANCH_NAME != 'main' }
             }
             steps {
                 script {
@@ -178,7 +178,7 @@ pipeline {
 
         stage('Post PR Comment') {
             when {
-                changeRequest()
+                expression { return env.BRANCH_NAME && env.BRANCH_NAME != 'main' }
             }
             steps {
                 withCredentials([
@@ -206,7 +206,7 @@ pipeline {
             echo 'pipeline completed.'
         }
         success {
-            echo 'PR is ready for review.'
+            echo 'AI review completed for this branch.'
         }
         failure {
             echo 'Pipeline failed.'

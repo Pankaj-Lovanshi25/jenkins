@@ -22,15 +22,15 @@ function isPullRequestBuild() {
   return Boolean(process.env.CHANGE_ID);
 }
 
+function getBranchName() {
+  return process.env.BRANCH_NAME || process.env.GIT_BRANCH || "";
+}
+
 function getTargetBranch() {
   return process.env.CHANGE_TARGET || "main";
 }
 
 function ensureTargetBranchAvailable() {
-  if (!isPullRequestBuild()) {
-    return;
-  }
-
   const targetBranch = getTargetBranch();
 
   try {
@@ -43,11 +43,11 @@ function ensureTargetBranchAvailable() {
 }
 
 function getDiffRange() {
-  if (isPullRequestBuild()) {
-    return `origin/${getTargetBranch()}...HEAD`;
-  }
+  return `origin/${getTargetBranch()}...HEAD`;
+}
 
-  return "HEAD~1..HEAD";
+function getHeadCommit() {
+  return runGit("git rev-parse HEAD");
 }
 
 function getChangedFiles() {
@@ -110,7 +110,10 @@ function buildPrompt(files, diffPreview) {
   const snapshots = readFilesWithLineNumbers(files);
   const combinedReviewInput = [
     `REVIEW SCOPE: Only review the changed files and changed hunks shown below. Ignore unchanged code.`,
-    `PULL REQUEST TARGET BRANCH: ${isPullRequestBuild() ? getTargetBranch() : "local HEAD~1"}`,
+    `BUILD TYPE: ${isPullRequestBuild() ? "pull_request" : "branch_push"}`,
+    `BRANCH NAME: ${getBranchName() || "unknown"}`,
+    `HEAD COMMIT: ${getHeadCommit()}`,
+    `TARGET BRANCH: ${isPullRequestBuild() ? getTargetBranch() : "main"}`,
     diffPreview ? `GIT DIFF PREVIEW:\n${diffPreview}` : "GIT DIFF PREVIEW: [empty]",
     `FILE SNAPSHOT WITH LINE NUMBERS:\n${snapshots}`
   ].join("\n\n---\n\n");

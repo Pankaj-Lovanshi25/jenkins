@@ -8,9 +8,9 @@ app.get("/test", (req, res) => {
   res.status(200).send(`server is running at port ${PORT}`);
 });
 
-app.get("test3", (req, res) => {
+app.get("/test3", (req, res) => {
   console.log("test 2 is working fine");
-  res.send("test 2 is working fine")
+  res.send("test 2 is working fine");
 });
 app.get("/ai-test", (req, res) => {
   res.send("testing AI review");

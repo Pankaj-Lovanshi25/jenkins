@@ -22,6 +22,15 @@ function assertRequiredConfig() {
   }
 }
 
+async function validateGithubToken() {
+  await axios.get("https://api.github.com", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json"
+    }
+  });
+}
+
 function runGit(command) {
   return execSync(command, {
     cwd: __dirname,
@@ -57,6 +66,7 @@ async function findOpenPrNumber() {
 
 async function postComment() {
   assertRequiredConfig();
+  await validateGithubToken();
 
   if (!fs.existsSync(reviewPath)) {
     throw new Error(

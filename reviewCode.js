@@ -33,10 +33,19 @@ function getTargetBranch() {
 
 function ensureTargetBranchAvailable() {
   const targetBranch = getTargetBranch();
+  const localRef = `refs/remotes/origin/${targetBranch}`;
+
+  try {
+    runGit(`git show-ref --verify --quiet ${localRef}`);
+    console.log(`Target branch ${targetBranch} is already available locally.`);
+    return;
+  } catch (error) {
+    // Fall through and try a targeted fetch.
+  }
 
   try {
     runGit(
-      `git fetch --no-tags origin +refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch} --depth=1`
+      `git fetch --no-tags origin +refs/heads/${targetBranch}:${localRef} --depth=1`
     );
   } catch (error) {
     console.warn(

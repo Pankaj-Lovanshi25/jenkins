@@ -1,168 +1,3 @@
-
-// const fs = require("fs");
-// const  path = require("path")
-// const axios = require("axios");
-// require("dotenv").config();
-
-// const filepath = path.join(__dirname,  "server.js");
-// const code = fs.readFileSync(filepath, "utf-8");
-
-// async function reviewCode(){
-//     try{
-//         const response = await axios.post("https://api.groq.com/openai/v1/chat/completions",{
-//             model: "llama-3.3-70b-versatile",
-//             messages:[
-//                 {
-//                     role: "system",
-//                     content:
-//                     "You are a code reviewer. Find bugs, errors, security issues, and optimization opportunities. Return output in this format: File, Line, Issue, Why It Is Wrong, Solution, Optimization, Severity."
-//                 },
-//                 {
-//                     role: "user",
-//                     content: `Review the following code carefully and identify any incorrect snippets, bugs, and improvements:\n\n${code}`
-//                 }
-//             ],
-//             temperature: 0.2,
-//         },
-//         {
-//             headers:{
-//                 Authorization: `Bearer  ${process.env.GROQ_API_KEY}`,
-//                 "content-type":  "application/json"
-//             }
-//         }
-//     );
-//     console.log("===AI CODE REVIEW REPORT===");
-//     console.log(response.data.choices[0].message.content)
-//     process.exit(0);
-//     }
-//     catch(err){
-//         console.error("AI review failed:");
-//         console.error(err.response?.data || err.message);
-//         process.exit(1);
-
-//     }
-// }
-
-// reviewCode();
-
-
-
-
-// const fs = require("fs");
-// const path = require("path");
-// const { execSync } = require("child_process");
-// const axios = require("axios");
-// require("dotenv").config({ path: path.join(__dirname, ".env") });
-
-// const GROQ_API_KEY = process.env.GROQ_API_KEY;
-// const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-// const FALLBACK_FILES = ["Jenkinsfile", "server.js", "reviewCode.js", "package.json", "README.md"];
-// console.log("API Key Found:", !!process.env.GROQ_API_KEY);
-
-// function runGit(command) {
-//   return execSync(command, {
-//     cwd: __dirname,
-//     encoding: "utf8",
-//     stdio: ["ignore", "pipe", "pipe"],
-//     maxBuffer: 10 * 1024 * 1024
-//   }).trim();
-// }
-
-// function getDiffRange() {
-//   if (process.env.CHANGE_ID) {
-//     const targetBranch = process.env.CHANGE_TARGET || "main";
-//     return `origin/${targetBranch}...HEAD`;
-//   }
-
-//   return "HEAD~1..HEAD";
-// }
-
-// function getChangedFiles() {
-//   const commands = [
-//     `git diff --name-only --diff-filter=ACMRT ${getDiffRange()} -- .`,
-//     "git diff --name-only --diff-filter=ACMRT -- ."
-//   ];
-
-//   for (const command of commands) {
-//     try {
-//       const output = runGit(command);
-//       if (output) {
-//         return output
-//           .split(/\r?\n/)
-//           .map((file) => file.trim())
-//           .filter(Boolean);
-//       }
-//     } catch (error) {
-//       // Try the next fallback command.
-//     }
-//   }
-
-//   return FALLBACK_FILES.filter((file) => fs.existsSync(path.join(__dirname, file)));
-// }
-
-// function readFilesWithLineNumbers(files) {
-//   return files
-//     .map((file) => {
-//       const fullPath = path.join(__dirname, file);
-//       const content = fs.readFileSync(fullPath, "utf8");
-//       const numberedContent = content
-//         .split(/\r?\n/)
-//         .map((line, index) => `${index + 1}: ${line}`)
-//         .join("\n");
-
-//       return `FILE: ${file}\n${numberedContent}`;
-//     })
-//     .join("\n\n---\n\n");
-// }
-
-// async function reviewCode() {
-//   if (!GROQ_API_KEY) {
-//     console.log("GROQ_API_KEY is missing. Skipping AI review.");
-//     return;
-//   }
-
-//   const filesToReview = getChangedFiles();
-//   const reviewInput = readFilesWithLineNumbers(filesToReview);
-
-//   const response = await axios.post(
-//     "https://api.groq.com/openai/v1/chat/completions",
-//     {
-//       model: GROQ_MODEL,
-//       temperature: 0.2,
-//       messages: [
-//         {
-//           role: "system",
-//           content:
-//             "You are a senior Jenkins and Node.js code reviewer. Find bugs, incorrect snippets, security issues, build problems, and optimization opportunities. For each finding, include File, Line, Issue, Why It Is Wrong, Solution, Optimization, and Severity. If no issue exists, say that clearly."
-//         },
-//         {
-//           role: "user",
-//           content: `Review the following PR/build changes carefully. Focus on exact line references and give practical fixes:\n\n${reviewInput}`
-//         }
-//       ]
-//     },
-//     {
-//       headers: {
-//         Authorization: `Bearer ${GROQ_API_KEY}`,
-//         "Content-Type": "application/json"
-//       }
-//     }
-//   );
-
-//   console.log("\n=== AI CODE REVIEW REPORT ===\n");
-//   console.log(response.data.choices[0].message.content);
-// }
-
-// reviewCode().catch((error) => {
-//   console.error("AI review failed:");
-//   console.error(error.response?.data || error.message);
-//   process.exitCode = 1;
-// });
-
-
-
-
-
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
@@ -171,8 +6,8 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-const FALLBACK_FILES = ["Jenkinsfile", "server.js", "reviewCode.js", "package.json", "README.md"];
-console.log("API Key Found:", !!process.env.GROQ_API_KEY);
+const REVIEW_OUTPUT_PATH = path.join(__dirname, "review.txt");
+const MAX_PROMPT_CHARS = 50000;
 
 function runGit(command) {
   return execSync(command, {
@@ -183,62 +18,75 @@ function runGit(command) {
   }).trim();
 }
 
-function getDiffPreview() {
-  const commands = [
-    `git diff --no-color --unified=0 ${getDiffRange()} -- .`,
-    "git diff --no-color --unified=0 -- ."
-  ];
+function isPullRequestBuild() {
+  return Boolean(process.env.CHANGE_ID);
+}
 
-  for (const command of commands) {
-    try {
-      const output = runGit(command);
-      if (output) {
-        return output;
-      }
-    } catch (error) {
-      // Try the next fallback command.
-    }
+function getBranchName() {
+  return process.env.BRANCH_NAME || process.env.GIT_BRANCH || "";
+}
+
+function getTargetBranch() {
+  return process.env.CHANGE_TARGET || "main";
+}
+
+function ensureTargetBranchAvailable() {
+  const targetBranch = getTargetBranch();
+
+  try {
+    runGit(`git fetch --no-tags origin ${targetBranch} --depth=1`);
+  } catch (error) {
+    console.warn(
+      `Warning: could not fetch origin/${targetBranch}. Using the local checkout only.`
+    );
   }
-
-  return "";
 }
 
 function getDiffRange() {
-  if (process.env.CHANGE_ID) {
-    const targetBranch = process.env.CHANGE_TARGET || "main";
-    return `origin/${targetBranch}...HEAD`;
-  }
+  return `origin/${getTargetBranch()}...HEAD`;
+}
 
-  return "HEAD~1..HEAD";
+function getHeadCommit() {
+  return runGit("git rev-parse HEAD");
 }
 
 function getChangedFiles() {
-  const commands = [
-    `git diff --name-only --diff-filter=ACMRT ${getDiffRange()} -- .`,
-    "git diff --name-only --diff-filter=ACMRT -- ."
-  ];
+  const diffRange = getDiffRange();
+  const output = runGit(
+    `git diff --name-only --diff-filter=ACMRT ${diffRange} -- .`
+  );
 
-  for (const command of commands) {
-    try {
-      const output = runGit(command);
-      if (output) {
-        return output
-          .split(/\r?\n/)
-          .map((file) => file.trim())
-          .filter(Boolean);
-      }
-    } catch (error) {
-      // Try the next fallback command.
-    }
+  if (!output) {
+    return [];
   }
 
-  return FALLBACK_FILES.filter((file) => fs.existsSync(path.join(__dirname, file)));
+  return output
+    .split(/\r?\n/)
+    .map((file) => file.trim())
+    .filter(Boolean);
+}
+
+function getDiffPreview(files) {
+  if (files.length === 0) {
+    return "";
+  }
+
+  const diffRange = getDiffRange();
+  const quotedFiles = files.map((file) => `"${file}"`).join(" ");
+  return runGit(
+    `git diff --no-color --unified=3 ${diffRange} -- ${quotedFiles}`
+  );
 }
 
 function readFilesWithLineNumbers(files) {
   return files
     .map((file) => {
       const fullPath = path.join(__dirname, file);
+
+      if (!fs.existsSync(fullPath)) {
+        return `FILE: ${file}\n[File missing from workspace checkout]`;
+      }
+
       const content = fs.readFileSync(fullPath, "utf8");
       const numberedContent = content
         .split(/\r?\n/)
@@ -250,29 +98,56 @@ function readFilesWithLineNumbers(files) {
     .join("\n\n---\n\n");
 }
 
+function truncateForPrompt(text, limit = MAX_PROMPT_CHARS) {
+  if (text.length <= limit) {
+    return text;
+  }
+
+  return `${text.slice(0, limit)}\n\n[TRUNCATED: prompt exceeded ${limit} characters]`;
+}
+
+function buildPrompt(files, diffPreview) {
+  const snapshots = readFilesWithLineNumbers(files);
+  const combinedReviewInput = [
+    `REVIEW SCOPE: Only review the changed files and changed hunks shown below. Ignore unchanged code.`,
+    `BUILD TYPE: ${isPullRequestBuild() ? "pull_request" : "branch_push"}`,
+    `BRANCH NAME: ${getBranchName() || "unknown"}`,
+    `HEAD COMMIT: ${getHeadCommit()}`,
+    `TARGET BRANCH: ${isPullRequestBuild() ? getTargetBranch() : "main"}`,
+    diffPreview ? `GIT DIFF PREVIEW:\n${diffPreview}` : "GIT DIFF PREVIEW: [empty]",
+    `FILE SNAPSHOT WITH LINE NUMBERS:\n${snapshots}`
+  ].join("\n\n---\n\n");
+
+  return truncateForPrompt(combinedReviewInput);
+}
+
 async function reviewCode() {
   if (!GROQ_API_KEY) {
-    console.log("GROQ_API_KEY is missing. Skipping AI review.");
+    throw new Error(
+      "GROQ_API_KEY is missing. Configure it in Jenkins credentials so the PR review can run."
+    );
+  }
+
+  ensureTargetBranchAvailable();
+
+  const filesToReview = getChangedFiles();
+
+  if (filesToReview.length === 0) {
+    const emptyReview =
+      "No changed files were detected for this PR/build, so there is nothing to review.";
+    fs.writeFileSync(REVIEW_OUTPUT_PATH, emptyReview, "utf8");
+    console.log(emptyReview);
     return;
   }
 
-  const filesToReview = getChangedFiles();
-  const diffPreview = getDiffPreview();
-  const reviewInput = readFilesWithLineNumbers(filesToReview);
-  const combinedReviewInput = [
-    diffPreview ? `GIT DIFF PREVIEW:\n${diffPreview}` : "",
-    `FILE SNAPSHOT WITH LINE NUMBERS:\n${reviewInput}`
-  ]
-    .filter(Boolean)
-    .join("\n\n---\n\n");
+  const diffPreview = getDiffPreview(filesToReview);
+  const prompt = buildPrompt(filesToReview, diffPreview);
 
-  if (diffPreview) {
-    console.log("\n=== CHANGED FILE DIFF (+ / -) ===\n");
-    console.log(diffPreview);
-  } else {
-    console.log("\n=== CHANGED FILE DIFF (+ / -) ===\n");
-    console.log("No diff preview available. Showing file snapshots only.");
-  }
+  console.log("\n=== CHANGED FILES ===\n");
+  console.log(filesToReview.join("\n"));
+
+  console.log("\n=== CHANGED DIFF PREVIEW (+ / -) ===\n");
+  console.log(diffPreview || "No diff preview available.");
 
   const response = await axios.post(
     "https://api.groq.com/openai/v1/chat/completions",
@@ -283,11 +158,11 @@ async function reviewCode() {
         {
           role: "system",
           content:
-            "You are a senior Jenkins and Node.js code reviewer. Find bugs, incorrect snippets, security issues, build problems, and optimization opportunities. For each finding, include File, Line, Issue, Why It Is Wrong, Solution, Optimization, and Severity. If no issue exists, say that clearly."
+            "You are a senior Jenkins and Node.js code reviewer. Review only the changed code in the provided PR diff. Find bugs, incorrect snippets, security issues, build problems, and optimization opportunities. For each finding, include File, Line, Issue, Why It Is Wrong, Solution, Optimization, and Severity. If no issue exists, say that clearly."
         },
         {
           role: "user",
-          content: `Review the following PR/build changes carefully. Focus on exact line references and give practical fixes. When you suggest a fix, prefer unified diff style with + for additions and - for removals:\n\n${combinedReviewInput}`
+          content: `Review this PR carefully and give practical fixes in unified diff style when possible:\n\n${prompt}`
         }
       ]
     },
@@ -299,18 +174,14 @@ async function reviewCode() {
     }
   );
 
+  const review =
+    response.data?.choices?.[0]?.message?.content?.trim() ||
+    "AI review returned an empty response.";
+
   console.log("\n=== AI CODE REVIEW REPORT ===\n");
-  // console.log(response.data.choices[0].message.content);
-    const review = response.data.choices[0].message.content;
+  console.log(review);
 
-    console.log(review);
-
-    fs.writeFileSync(
-      path.join(__dirname, "review.txt"),
-      review,
-      "utf8"
-    );
-
+  fs.writeFileSync(REVIEW_OUTPUT_PATH, review, "utf8");
 }
 
 reviewCode().catch((error) => {

@@ -159,30 +159,27 @@ pipeline {
         }
 
         stage('AI Code Review') {
+            when {
+                expression { return env.BRANCH_NAME && env.BRANCH_NAME != 'main' }
+            }
             steps {
                 script {
-                    try {
-                        withCredentials([
-                            string(
-                                credentialsId: 'GROQ_API_KEY',
-                                variable: 'GROQ_API_KEY'
-                            )
-                        ]) {
-                            bat 'node reviewCode.js'
-                        }
-                    } catch (err) {
-                        if (err.getMessage()?.contains('GROQ_API_KEY')) {
-                            echo 'GROQ_API_KEY credential is not configured.'
-                            bat 'node reviewCode.js'
-                        } else {
-                            throw err
-                        }
+                    withCredentials([
+                        string(
+                            credentialsId: 'GROQ_API_KEY',
+                            variable: 'GROQ_API_KEY'
+                        )
+                    ]) {
+                        bat 'node reviewCode.js'
                     }
                 }
             }
         }
 
         stage('Post PR Comment') {
+            when {
+                expression { return env.BRANCH_NAME && env.BRANCH_NAME != 'main' }
+            }
             steps {
                 withCredentials([
                     string(
@@ -209,7 +206,7 @@ pipeline {
             echo 'pipeline completed.'
         }
         success {
-            echo 'PR is ready for review.'
+            echo 'AI review completed for this branch.'
         }
         failure {
             echo 'Pipeline failed.'

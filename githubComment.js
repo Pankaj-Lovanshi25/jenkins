@@ -10,6 +10,27 @@ const prNumber = process.env.CHANGE_ID;
 const branchName = process.env.BRANCH_NAME || process.env.GIT_BRANCH || "";
 const reviewPath = path.join(__dirname, "review.txt");
 
+function assertRequiredConfig() {
+  if (!token) {
+    throw new Error("GITHUB_TOKEN is missing. Configure it in Jenkins credentials or .env.");
+  }
+
+  if (!repoOwner || !repoName) {
+    throw new Error(
+      "GITHUB_OWNER and GITHUB_REPO are required so the review comment can be posted."
+    );
+  }
+}
+
+async function validateGithubToken() {
+  await axios.get("https://api.github.com", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json"
+    }
+  });
+}
+
 function runGit(command) {
   return execSync(command, {
     cwd: __dirname,
@@ -44,6 +65,9 @@ async function findOpenPrNumber() {
 }
 
 async function postComment() {
+  assertRequiredConfig();
+  await validateGithubToken();
+
   if (!fs.existsSync(reviewPath)) {
     throw new Error(
       "review.txt was not generated, so there is nothing to post as a PR comment."

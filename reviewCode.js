@@ -7,6 +7,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const REVIEW_OUTPUT_PATH = path.join(__dirname, "review.txt");
+const REVIEW_REPORT_PATH = path.join(__dirname, "ai-review-report.md");
 const MAX_PROMPT_CHARS = 50000;
 
 function runGit(command) {
@@ -32,9 +33,20 @@ function getTargetBranch() {
 
 function ensureTargetBranchAvailable() {
   const targetBranch = getTargetBranch();
+  const localRef = `refs/remotes/origin/${targetBranch}`;
 
   try {
-    runGit(`git fetch --no-tags origin ${targetBranch} --depth=1`);
+    runGit(`git show-ref --verify --quiet ${localRef}`);
+    console.log(`Target branch ${targetBranch} is already available locally.`);
+    return;
+  } catch (error) {
+    // Fall through and try a targeted fetch.
+  }
+
+  try {
+    runGit(
+      `git fetch --no-tags origin +refs/heads/${targetBranch}:${localRef} --depth=1`
+    );
   } catch (error) {
     console.warn(
       `Warning: could not fetch origin/${targetBranch}. Using the local checkout only.`
@@ -42,8 +54,28 @@ function ensureTargetBranchAvailable() {
   }
 }
 
+function getDiffRangeCandidates() {
+  const targetBranch = getTargetBranch();
+  return [
+    `origin/${targetBranch}...HEAD`,
+    `${targetBranch}...HEAD`,
+    "HEAD~1..HEAD"
+  ];
+}
+
 function getDiffRange() {
-  return `origin/${getTargetBranch()}...HEAD`;
+  for (const candidate of getDiffRangeCandidates()) {
+    try {
+      runGit(`git diff --name-only --diff-filter=ACMRT ${candidate} -- .`);
+      return candidate;
+    } catch (error) {
+      // Try the next candidate.
+    }
+  }
+
+  throw new Error(
+    `Unable to resolve a git diff range for branch ${getBranchName() || "unknown"}.`
+  );
 }
 
 function getHeadCommit() {
@@ -106,10 +138,22 @@ function truncateForPrompt(text, limit = MAX_PROMPT_CHARS) {
   return `${text.slice(0, limit)}\n\n[TRUNCATED: prompt exceeded ${limit} characters]`;
 }
 
+function buildReviewInstructions() {
+  return [
+    "Review only the changed files and changed hunks included in this prompt.",
+    "Do not review unchanged code or invent missing context.",
+    "Focus on syntax errors, security issues, best-practice problems, build/runtime regressions, and code-quality issues.",
+    "For each finding, include: File, Line, Issue, Why It Is Wrong, and Solution.",
+    "If there are no issues, respond with exactly: No issues found.",
+    "Keep the response concise and practical."
+  ].join(" ");
+}
+
 function buildPrompt(files, diffPreview) {
   const snapshots = readFilesWithLineNumbers(files);
   const combinedReviewInput = [
     `REVIEW SCOPE: Only review the changed files and changed hunks shown below. Ignore unchanged code.`,
+    `REVIEW RULES: ${buildReviewInstructions()}`,
     `BUILD TYPE: ${isPullRequestBuild() ? "pull_request" : "branch_push"}`,
     `BRANCH NAME: ${getBranchName() || "unknown"}`,
     `HEAD COMMIT: ${getHeadCommit()}`,
@@ -119,6 +163,11 @@ function buildPrompt(files, diffPreview) {
   ].join("\n\n---\n\n");
 
   return truncateForPrompt(combinedReviewInput);
+}
+
+function writeReviewOutput(review) {
+  fs.writeFileSync(REVIEW_OUTPUT_PATH, review, "utf8");
+  fs.writeFileSync(REVIEW_REPORT_PATH, review, "utf8");
 }
 
 async function reviewCode() {
@@ -135,7 +184,7 @@ async function reviewCode() {
   if (filesToReview.length === 0) {
     const emptyReview =
       "No changed files were detected for this PR/build, so there is nothing to review.";
-    fs.writeFileSync(REVIEW_OUTPUT_PATH, emptyReview, "utf8");
+    writeReviewOutput(emptyReview);
     console.log(emptyReview);
     return;
   }
@@ -181,7 +230,7 @@ async function reviewCode() {
   console.log("\n=== AI CODE REVIEW REPORT ===\n");
   console.log(review);
 
-  fs.writeFileSync(REVIEW_OUTPUT_PATH, review, "utf8");
+  writeReviewOutput(review);
 }
 
 reviewCode().catch((error) => {

@@ -138,6 +138,11 @@ pipeline {
         GITHUB_REPO  = 'jenkins'
     }
 
+    options {
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '10'))
+    }
+
     stages {
 
         stage('Checkout') {
@@ -164,13 +169,23 @@ pipeline {
             }
             steps {
                 script {
-                    withCredentials([
-                        string(
-                            credentialsId: 'GROQ_API_KEY',
-                            variable: 'GROQ_API_KEY'
-                        )
-                    ]) {
-                        bat 'node reviewCode.js'
+                    try {
+                        withCredentials([
+                            string(
+                                credentialsId: 'GROQ_API_KEY',
+                                variable: 'GROQ_API_KEY'
+                            )
+                        ]) {
+                            bat 'node reviewCode.js'
+                        }
+                    } catch (err) {
+                        def message = err.getMessage() ?: ''
+                        if (message.toLowerCase().contains('credential')) {
+                            echo 'GROQ_API_KEY credential was not available. Falling back to local env support.'
+                            bat 'node reviewCode.js'
+                        } else {
+                            throw err
+                        }
                     }
                 }
             }
@@ -181,13 +196,25 @@ pipeline {
                 expression { return env.BRANCH_NAME && env.BRANCH_NAME != 'main' }
             }
             steps {
-                withCredentials([
-                    string(
-                        credentialsId: 'GITHUB_TOKEN',
-                        variable: 'GITHUB_TOKEN'
-                    )
-                ]) {
-                    bat 'node githubComment.js'
+                script {
+                    try {
+                        withCredentials([
+                            string(
+                                credentialsId: 'GITHUB_TOKEN',
+                                variable: 'GITHUB_TOKEN'
+                            )
+                        ]) {
+                            bat 'node githubComment.js'
+                        }
+                    } catch (err) {
+                        def message = err.getMessage() ?: ''
+                        if (message.toLowerCase().contains('credential')) {
+                            echo 'GITHUB_TOKEN credential was not available. Falling back to local env support.'
+                            bat 'node githubComment.js'
+                        } else {
+                            throw err
+                        }
+                    }
                 }
             }
         }

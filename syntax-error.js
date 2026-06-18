@@ -7,4 +7,4 @@ function brokenGreeting(name) {
 }
 
 const message = brokenGreeting("Jenkins");
-console.log(message);
+console.log(message

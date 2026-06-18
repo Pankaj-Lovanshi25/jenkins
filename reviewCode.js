@@ -143,9 +143,13 @@ function buildReviewInstructions() {
     "Review only the changed files and changed hunks included in this prompt.",
     "Do not review unchanged code or invent missing context.",
     "Focus on syntax errors, security issues, best-practice problems, build/runtime regressions, and code-quality issues.",
-    "For each finding, include: File, Line, Issue, Why It Is Wrong, and Solution.",
-    "If there are no issues, respond with exactly: No issues found.",
-    "Keep the response concise and practical."
+    "Return valid JSON only. Do not wrap the response in markdown or code fences.",
+    'Use this exact schema: {"summary":"string","comments":[{"path":"relative/file.js","line":10,"side":"RIGHT","body":"string","severity":"low|medium|high"}]}',
+    "Only include comments for lines that appear in the provided changed files and diffs.",
+    "Use side RIGHT for added or modified lines in the current file snapshot.",
+    "Use side LEFT only when you are commenting on a deleted line that is visible in the diff preview.",
+    'If there are no issues, return {"summary":"No issues found.","comments":[]}.',
+    "Keep each comment body short, specific, and practical."
   ].join(" ");
 }
 
@@ -159,15 +163,101 @@ function buildPrompt(files, diffPreview) {
     `HEAD COMMIT: ${getHeadCommit()}`,
     `TARGET BRANCH: ${isPullRequestBuild() ? getTargetBranch() : "main"}`,
     diffPreview ? `GIT DIFF PREVIEW:\n${diffPreview}` : "GIT DIFF PREVIEW: [empty]",
-    `FILE SNAPSHOT WITH LINE NUMBERS:\n${snapshots}`
+    `FILE SNAPSHOT WITH LINE NUMBERS:\n${snapshots}`,
+    "Output only JSON that matches the requested schema."
   ].join("\n\n---\n\n");
 
   return truncateForPrompt(combinedReviewInput);
 }
 
+function extractJsonPayload(text) {
+  const trimmed = text.trim();
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (error) {
+    // Try fenced code blocks or a JSON object embedded in text.
+  }
+
+  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fencedMatch) {
+    return JSON.parse(fencedMatch[1].trim());
+  }
+
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+
+  if (start !== -1 && end !== -1 && end > start) {
+    return JSON.parse(trimmed.slice(start, end + 1));
+  }
+
+  throw new Error("AI response did not contain valid JSON.");
+}
+
+function normalizeReviewData(value) {
+  const source = Array.isArray(value) ? { comments: value } : value || {};
+  const comments = Array.isArray(source.comments) ? source.comments : [];
+
+  return {
+    summary:
+      typeof source.summary === "string" && source.summary.trim()
+        ? source.summary.trim()
+        : "AI review completed.",
+    comments: comments
+      .map((comment) => ({
+        path: typeof comment.path === "string" ? comment.path.trim() : "",
+        line: Number.parseInt(comment.line, 10),
+        side:
+          comment.side === "LEFT"
+            ? "LEFT"
+            : comment.side === "RIGHT"
+              ? "RIGHT"
+              : "RIGHT",
+        body: typeof comment.body === "string" ? comment.body.trim() : "",
+        severity:
+          typeof comment.severity === "string" && comment.severity.trim()
+            ? comment.severity.trim()
+            : "medium"
+      }))
+      .filter(
+        (comment) =>
+          comment.path &&
+          Number.isInteger(comment.line) &&
+          comment.line > 0 &&
+          comment.body
+      )
+  };
+}
+
+function formatMarkdownReport(review) {
+  const lines = [
+    "# AI Code Review",
+    "",
+    review.summary || "No issues found."
+  ];
+
+  if (review.comments.length === 0) {
+    lines.push("", "No inline findings were generated.");
+    return lines.join("\n");
+  }
+
+  lines.push("", "## Inline Findings");
+
+  review.comments.forEach((comment, index) => {
+    lines.push(
+      "",
+      `${index + 1}. **${comment.path}:${comment.line}** (${comment.side}, ${comment.severity})`,
+      `   ${comment.body}`
+    );
+  });
+
+  return lines.join("\n");
+}
+
 function writeReviewOutput(review) {
-  fs.writeFileSync(REVIEW_OUTPUT_PATH, review, "utf8");
-  fs.writeFileSync(REVIEW_REPORT_PATH, review, "utf8");
+  const rawJson = JSON.stringify(review, null, 2);
+  fs.writeFileSync(REVIEW_OUTPUT_PATH, rawJson, "utf8");
+  fs.writeFileSync(REVIEW_REPORT_PATH, formatMarkdownReport(review), "utf8");
 }
 
 async function reviewCode() {
@@ -223,12 +313,25 @@ async function reviewCode() {
     }
   );
 
-  const review =
-    response.data?.choices?.[0]?.message?.content?.trim() ||
-    "AI review returned an empty response.";
+  const parsedReview =
+    response.data?.choices?.[0]?.message?.content?.trim() || "";
+  let review;
+
+  try {
+    review = normalizeReviewData(extractJsonPayload(parsedReview || "{}"));
+  } catch (error) {
+    console.warn(
+      "AI response was not valid JSON. Falling back to a general review summary."
+    );
+    review = {
+      summary: parsedReview || "AI review returned an empty response.",
+      comments: []
+    };
+  }
 
   console.log("\n=== AI CODE REVIEW REPORT ===\n");
-  console.log(review);
+  console.log(review.summary);
+  console.log(`Inline findings: ${review.comments.length}`);
 
   writeReviewOutput(review);
 }

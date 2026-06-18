@@ -1,6 +1,6 @@
 function brokenGreeting(name) {
   if (name) {
-    return `Hello, {name}`;
+    return `Hello, {nam}`;
   }
 
   return "Hello, guest";

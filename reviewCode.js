@@ -146,8 +146,7 @@ function buildReviewInstructions() {
     "Return valid JSON only. Do not wrap the response in markdown or code fences.",
     'Use this exact schema: {"summary":"string","comments":[{"path":"relative/file.js","line":10,"side":"RIGHT","body":"string","severity":"low|medium|high"}]}',
     "Only include comments for lines that appear in the provided changed files and diffs.",
-    "Use side RIGHT for added or modified lines in the current file snapshot.",
-    "Use side LEFT only when you are commenting on a deleted line that is visible in the diff preview.",
+    "Use side RIGHT for every comment unless you are sure the line is on the deleted side of the diff.",
     'If there are no issues, return {"summary":"No issues found.","comments":[]}.',
     "Keep each comment body short, specific, and practical."
   ].join(" ");

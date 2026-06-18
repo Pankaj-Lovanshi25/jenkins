@@ -176,26 +176,28 @@ async function postCommitComment(commitSha, body) {
 }
 
 async function postInlineReview(openPrNumber, review) {
-  const url = `https://api.github.com/repos/${repoOwner}/${repoName}/pulls/${openPrNumber}/reviews`;
+  const commitSha = getHeadCommit();
+  const commentsUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/pulls/${openPrNumber}/comments`;
 
-  const payload = {
-    commit_id: getHeadCommit(),
-    body: review.summary,
-    event: "COMMENT",
-    comments: review.comments.map((comment) => ({
-      path: comment.path,
-      line: comment.line,
-      side: comment.side,
-      body: comment.body
-    }))
-  };
-
-  await axios.post(url, payload, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json"
-    }
-  });
+  for (const comment of review.comments) {
+    await axios.post(
+      commentsUrl,
+      {
+        body: comment.body,
+        commit_id: commitSha,
+        path: comment.path,
+        line: comment.line,
+        side: comment.side,
+        subject_type: "line"
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json"
+        }
+      }
+    );
+  }
 }
 
 async function postComment() {
@@ -213,14 +215,9 @@ async function postComment() {
   const openPrNumber = prNumber || (await findOpenPrNumber());
 
   if (!openPrNumber) {
-    const commitSha = getHeadCommit();
-
-    if (!commitSha) {
-      throw new Error("Could not determine the current commit SHA.");
-    }
-
-    await postCommitComment(commitSha, buildFallbackBody(review));
-    console.log(`No open PR found. Commit comment posted on ${commitSha}`);
+    console.log(
+      "No open PR found for this build, so no GitHub comment was posted."
+    );
     return;
   }
 

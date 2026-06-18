@@ -165,7 +165,7 @@ pipeline {
 
         stage('AI Code Review') {
             when {
-                expression { return env.BRANCH_NAME && env.BRANCH_NAME != 'main' }
+                expression { return env.CHANGE_ID }
             }
             steps {
                 script {
@@ -193,7 +193,7 @@ pipeline {
 
         stage('Post PR Comment') {
             when {
-                expression { return env.BRANCH_NAME && env.BRANCH_NAME != 'main' }
+                expression { return env.CHANGE_ID }
             }
             steps {
                 script {

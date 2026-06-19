@@ -9,6 +9,7 @@ const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const REVIEW_OUTPUT_PATH = path.join(__dirname, "review.txt");
 const REVIEW_REPORT_PATH = path.join(__dirname, "ai-review-report.md");
 const MAX_PROMPT_CHARS = 50000;
+const SYNTAX_CHECKABLE_EXTENSIONS = new Set([".js", ".cjs", ".mjs", ".jsx"]);
 
 function runGit(command) {
   return execSync(command, {
@@ -82,6 +83,84 @@ function getHeadCommit() {
   return runGit("git rev-parse HEAD");
 }
 
+function isSyntaxCheckableFile(file) {
+  return SYNTAX_CHECKABLE_EXTENSIONS.has(path.extname(file).toLowerCase());
+}
+
+function runNodeSyntaxCheck(fullPath) {
+  try {
+    execSync(`node --check "${fullPath}"`, {
+      cwd: __dirname,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 1024 * 1024
+    });
+    return null;
+  } catch (error) {
+    const output = `${error.stderr || ""}${error.stdout || ""}${error.message || ""}`;
+    return output.trim();
+  }
+}
+
+function parseNodeSyntaxError(output, fallbackFile) {
+  if (!output) {
+    return null;
+  }
+
+  const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const messageLine = [...lines].reverse().find((line) =>
+    /^SyntaxError:|^Error:/.test(line)
+  );
+
+  const locationLine = lines.find((line) => line.includes(fallbackFile)) || lines[0] || "";
+  const match = locationLine.match(/^(.*?):(\d+)(?::(\d+))?/);
+  const lineNumber = match ? Number.parseInt(match[2], 10) : 1;
+  const message = messageLine
+    ? messageLine.replace(/^SyntaxError:\s*/i, "").replace(/^Error:\s*/i, "")
+    : "Syntax check failed.";
+
+  if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
+    return null;
+  }
+
+  return {
+    line: lineNumber,
+    message
+  };
+}
+
+function collectSyntaxFindings(files) {
+  const findings = [];
+
+  for (const file of files) {
+    if (!isSyntaxCheckableFile(file)) {
+      continue;
+    }
+
+    const fullPath = path.join(__dirname, file);
+    if (!fs.existsSync(fullPath)) {
+      continue;
+    }
+
+    const output = runNodeSyntaxCheck(fullPath);
+    const parsed = parseNodeSyntaxError(output, file);
+
+    if (!parsed) {
+      continue;
+    }
+
+    findings.push({
+      path: file,
+      line: parsed.line,
+      side: "RIGHT",
+      body: `Syntax error: ${parsed.message} Fix this line before merging.`,
+      severity: "high"
+    });
+  }
+
+  return findings;
+}
+
 function getChangedFiles() {
   const diffRange = getDiffRange();
   const output = runGit(
@@ -143,6 +222,7 @@ function buildReviewInstructions() {
     "Review only the changed files and changed hunks included in this prompt.",
     "Do not review unchanged code or invent missing context.",
     "Focus on syntax errors, security issues, best-practice problems, build/runtime regressions, and code-quality issues.",
+    "When you find a syntax issue, write the comment as a direct fix instruction for that exact line.",
     "Return valid JSON only. Do not wrap the response in markdown or code fences.",
     'Use this exact schema: {"summary":"string","comments":[{"path":"relative/file.js","line":10,"side":"RIGHT","body":"string","severity":"low|medium|high"}]}',
     "Only include comments for lines that appear in the provided changed files and diffs.",
@@ -269,11 +349,15 @@ async function reviewCode() {
   ensureTargetBranchAvailable();
 
   const filesToReview = getChangedFiles();
+  const syntaxFindings = collectSyntaxFindings(filesToReview);
 
   if (filesToReview.length === 0) {
     const emptyReview =
       "No changed files were detected for this PR/build, so there is nothing to review.";
-    writeReviewOutput(emptyReview);
+    writeReviewOutput({
+      summary: emptyReview,
+      comments: []
+    });
     console.log(emptyReview);
     return;
   }
@@ -296,7 +380,7 @@ async function reviewCode() {
         {
           role: "system",
           content:
-            "You are a senior Jenkins and Node.js code reviewer. Review only the changed code in the provided PR diff. Find bugs, incorrect snippets, security issues, build problems, and optimization opportunities. For each finding, include File, Line, Issue, Why It Is Wrong, Solution, Optimization, and Severity. If no issue exists, say that clearly."
+            "You are a senior Jenkins and Node.js code reviewer. Review only the changed code in the provided PR diff. Return strict JSON matching the requested schema and include inline findings only when you are confident about the file and line number."
         },
         {
           role: "user",
@@ -326,6 +410,23 @@ async function reviewCode() {
       summary: parsedReview || "AI review returned an empty response.",
       comments: []
     };
+  }
+
+  if (syntaxFindings.length > 0) {
+    const seen = new Set(
+      review.comments.map(
+        (comment) => `${comment.path}:${comment.line}:${comment.body}`
+      )
+    );
+    for (const finding of syntaxFindings) {
+      const key = `${finding.path}:${finding.line}:${finding.body}`;
+      if (!seen.has(key)) {
+        review.comments.unshift(finding);
+        seen.add(key);
+      }
+    }
+    review.summary =
+      review.summary || "AI review completed with syntax findings detected locally.";
   }
 
   console.log("\n=== AI CODE REVIEW REPORT ===\n");

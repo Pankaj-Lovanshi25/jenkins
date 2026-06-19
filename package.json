@@ -2,11 +2,11 @@
   "name": "jenkins",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node src/server.js",
     "test": "node -e \"console.log('No automated tests configured yet.')\"",
-    "review": "node reviewCode.js"
+    "review": "node src/reviewCode.js"
   },
   "repository": {
     "type": "git",

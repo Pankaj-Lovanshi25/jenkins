@@ -30,4 +30,5 @@ npm run review
 - The pipeline uses `npm ci` for reproducible installs.
 - If the Jenkins credential is missing, the pipeline falls back to the repo's local `.env` support.
 - The AI review script only inspects changed files from the current PR or branch push.
-- The review output is written to both `review.txt` and `ai-review-report.md` before the GitHub comment step runs.
+- The review output is written to `reports/review.txt` and `reports/ai-review-report.md` before the GitHub comment step runs.
+- Source files live in `src/`, sample PR files live in `samples/`, and generated review artifacts live in `reports/`.

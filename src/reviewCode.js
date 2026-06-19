@@ -2,18 +2,24 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 const axios = require("axios");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-const REVIEW_OUTPUT_PATH = path.join(__dirname, "review.txt");
-const REVIEW_REPORT_PATH = path.join(__dirname, "ai-review-report.md");
+const REPORTS_DIR = path.join(__dirname, "..", "reports");
+const REVIEW_OUTPUT_PATH = path.join(REPORTS_DIR, "review.txt");
+const REVIEW_REPORT_PATH = path.join(REPORTS_DIR, "ai-review-report.md");
 const MAX_PROMPT_CHARS = 50000;
 const SYNTAX_CHECKABLE_EXTENSIONS = new Set([".js", ".cjs", ".mjs", ".jsx"]);
 
+function ensureReportsDir() {
+  fs.mkdirSync(REPORTS_DIR, { recursive: true });
+}
+
 function runGit(command) {
   return execSync(command, {
-    cwd: __dirname,
+    cwd: path.join(__dirname, ".."),
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     maxBuffer: 10 * 1024 * 1024
@@ -90,7 +96,7 @@ function isSyntaxCheckableFile(file) {
 function runNodeSyntaxCheck(fullPath) {
   try {
     execSync(`node --check "${fullPath}"`, {
-      cwd: __dirname,
+      cwd: path.join(__dirname, ".."),
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       maxBuffer: 1024 * 1024
@@ -107,12 +113,16 @@ function parseNodeSyntaxError(output, fallbackFile) {
     return null;
   }
 
-  const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
   const messageLine = [...lines].reverse().find((line) =>
     /^SyntaxError:|^Error:/.test(line)
   );
 
-  const locationLine = lines.find((line) => line.includes(fallbackFile)) || lines[0] || "";
+  const locationLine =
+    lines.find((line) => line.includes(fallbackFile)) || lines[0] || "";
   const match = locationLine.match(/^(.*?):(\d+)(?::(\d+))?/);
   const lineNumber = match ? Number.parseInt(match[2], 10) : 1;
   const message = messageLine
@@ -137,7 +147,7 @@ function collectSyntaxFindings(files) {
       continue;
     }
 
-    const fullPath = path.join(__dirname, file);
+    const fullPath = path.join(__dirname, "..", file);
     if (!fs.existsSync(fullPath)) {
       continue;
     }
@@ -192,7 +202,7 @@ function getDiffPreview(files) {
 function readFilesWithLineNumbers(files) {
   return files
     .map((file) => {
-      const fullPath = path.join(__dirname, file);
+      const fullPath = path.join(__dirname, "..", file);
 
       if (!fs.existsSync(fullPath)) {
         return `FILE: ${file}\n[File missing from workspace checkout]`;
@@ -309,11 +319,7 @@ function normalizeReviewData(value) {
 }
 
 function formatMarkdownReport(review) {
-  const lines = [
-    "# AI Code Review",
-    "",
-    review.summary || "No issues found."
-  ];
+  const lines = ["# AI Code Review", "", review.summary || "No issues found."];
 
   if (review.comments.length === 0) {
     lines.push("", "No inline findings were generated.");
@@ -334,6 +340,7 @@ function formatMarkdownReport(review) {
 }
 
 function writeReviewOutput(review) {
+  ensureReportsDir();
   const rawJson = JSON.stringify(review, null, 2);
   fs.writeFileSync(REVIEW_OUTPUT_PATH, rawJson, "utf8");
   fs.writeFileSync(REVIEW_REPORT_PATH, formatMarkdownReport(review), "utf8");

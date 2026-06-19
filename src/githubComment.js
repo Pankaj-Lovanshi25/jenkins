@@ -8,7 +8,7 @@ const repoOwner = process.env.GITHUB_OWNER;
 const repoName = process.env.GITHUB_REPO;
 const prNumber = process.env.CHANGE_ID;
 const branchName = process.env.BRANCH_NAME || process.env.GIT_BRANCH || "";
-const reviewPath = path.join(__dirname, "review.txt");
+const reviewPath = path.join(__dirname, "..", "reports", "review.txt");
 const REVIEW_DIFF_CONTEXT = 0;
 
 function assertRequiredConfig() {
@@ -34,7 +34,7 @@ async function validateGithubToken() {
 
 function runGit(command) {
   return execSync(command, {
-    cwd: __dirname,
+    cwd: path.join(__dirname, ".."),
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
   }).trim();
@@ -222,21 +222,6 @@ function buildFallbackBody(review) {
 
 async function postPrComment(openPrNumber, body) {
   const url = `https://api.github.com/repos/${repoOwner}/${repoName}/issues/${openPrNumber}/comments`;
-
-  await axios.post(
-    url,
-    { body },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json"
-      }
-    }
-  );
-}
-
-async function postCommitComment(commitSha, body) {
-  const url = `https://api.github.com/repos/${repoOwner}/${repoName}/commits/${commitSha}/comments`;
 
   await axios.post(
     url,

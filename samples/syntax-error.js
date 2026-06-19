@@ -1,7 +1,7 @@
 function brokenGreeting(name) {
   if (nam) {
     return `Hello, ${name}`;
-  
+  }
 
   return "Hello, guest";
 }

@@ -44,13 +44,13 @@ pipeline {
                                 variable: 'GROQ_API_KEY'
                             )
                         ]) {
-                            bat 'node reviewCode.js'
+                            bat 'node src/reviewCode.js'
                         }
                     } catch (err) {
                         def message = err.getMessage() ?: ''
                         if (message.toLowerCase().contains('credential')) {
                             echo 'GROQ_API_KEY credential was not available. Falling back to local env support.'
-                            bat 'node reviewCode.js'
+                            bat 'node src/reviewCode.js'
                         } else {
                             throw err
                         }
@@ -72,13 +72,13 @@ pipeline {
                                 variable: 'GITHUB_TOKEN'
                             )
                         ]) {
-                            bat 'node githubComment.js'
+                            bat 'node src/githubComment.js'
                         }
                     } catch (err) {
                         def message = err.getMessage() ?: ''
                         if (message.toLowerCase().contains('credential')) {
                             echo 'GITHUB_TOKEN credential was not available. Falling back to local env support.'
-                            bat 'node githubComment.js'
+                            bat 'node src/githubComment.js'
                         } else {
                             throw err
                         }

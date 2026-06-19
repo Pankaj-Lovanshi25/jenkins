@@ -9,6 +9,7 @@ const repoName = process.env.GITHUB_REPO;
 const prNumber = process.env.CHANGE_ID;
 const branchName = process.env.BRANCH_NAME || process.env.GIT_BRANCH || "";
 const reviewPath = path.join(__dirname, "review.txt");
+const REVIEW_DIFF_CONTEXT = 0;
 
 function assertRequiredConfig() {
   if (!token) {
@@ -39,12 +40,86 @@ function runGit(command) {
   }).trim();
 }
 
+function getTargetBranch() {
+  return process.env.CHANGE_TARGET || "main";
+}
+
 function getHeadCommit() {
   try {
     return runGit("git rev-parse HEAD");
   } catch (error) {
     return "";
   }
+}
+
+function getDiffRange() {
+  const targetBranch = getTargetBranch();
+  return `origin/${targetBranch}...HEAD`;
+}
+
+function getUnifiedZeroDiff(files) {
+  const quotedFiles = files.map((file) => `"${file}"`).join(" ");
+  return runGit(
+    `git diff --no-color --unified=${REVIEW_DIFF_CONTEXT} ${getDiffRange()} -- ${quotedFiles}`
+  );
+}
+
+function buildDiffPositionMap(files) {
+  const diffText = getUnifiedZeroDiff(files);
+  const lines = diffText.split(/\r?\n/);
+  const positions = new Map();
+
+  let currentFile = "";
+  let currentPosition = 0;
+  let currentNewLine = 0;
+  let currentOldLine = 0;
+
+  for (const rawLine of lines) {
+    if (rawLine.startsWith("diff --git ")) {
+      currentFile = "";
+      currentPosition = 0;
+      currentNewLine = 0;
+      currentOldLine = 0;
+      continue;
+    }
+
+    const fileMatch = rawLine.match(/^\+\+\+\s+b\/(.+)$/);
+    if (fileMatch) {
+      currentFile = fileMatch[1];
+      continue;
+    }
+
+    const hunkMatch = rawLine.match(/^@@\s-(\d+)(?:,\d+)?\s\+(\d+)(?:,\d+)?\s@@/);
+    if (hunkMatch) {
+      currentOldLine = Number.parseInt(hunkMatch[1], 10);
+      currentNewLine = Number.parseInt(hunkMatch[2], 10);
+      continue;
+    }
+
+    if (!currentFile || !rawLine || rawLine.startsWith("\\ No newline")) {
+      continue;
+    }
+
+    currentPosition += 1;
+
+    if (rawLine.startsWith("+")) {
+      positions.set(`${currentFile}:${currentNewLine}:RIGHT`, currentPosition);
+      currentNewLine += 1;
+    } else if (rawLine.startsWith("-")) {
+      positions.set(`${currentFile}:${currentOldLine}:LEFT`, currentPosition);
+      currentOldLine += 1;
+    } else {
+      currentNewLine += 1;
+      currentOldLine += 1;
+    }
+  }
+
+  return positions;
+}
+
+function resolveCommentPosition(positionMap, comment) {
+  const key = `${comment.path}:${comment.line}:${comment.side}`;
+  return positionMap.get(key) || null;
 }
 
 async function findOpenPrNumber() {
@@ -177,27 +252,48 @@ async function postCommitComment(commitSha, body) {
 
 async function postInlineReview(openPrNumber, review) {
   const commitSha = getHeadCommit();
-  const commentsUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/pulls/${openPrNumber}/comments`;
+  const positionMap = buildDiffPositionMap(
+    [...new Set(review.comments.map((comment) => comment.path))]
+  );
+  const comments = review.comments
+    .map((comment) => {
+      const position = resolveCommentPosition(positionMap, comment);
 
-  for (const comment of review.comments) {
-    await axios.post(
-      commentsUrl,
-      {
-        body: comment.body,
-        commit_id: commitSha,
-        path: comment.path,
-        line: comment.line,
-        side: comment.side,
-        subject_type: "line"
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json"
-        }
+      if (!position) {
+        return null;
       }
+
+      return {
+        path: comment.path,
+        position,
+        body: comment.body
+      };
+    })
+    .filter(Boolean);
+
+  if (comments.length === 0) {
+    throw new Error(
+      "No review comments could be mapped to diff positions, so inline posting was skipped."
     );
   }
+
+  const url = `https://api.github.com/repos/${repoOwner}/${repoName}/pulls/${openPrNumber}/reviews`;
+
+  await axios.post(
+    url,
+    {
+      body: review.summary,
+      event: "COMMENT",
+      commit_id: commitSha,
+      comments
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json"
+      }
+    }
+  );
 }
 
 async function postComment() {

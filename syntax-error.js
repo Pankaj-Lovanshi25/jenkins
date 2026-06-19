@@ -1,10 +1,10 @@
 function brokenGreeting(name) {
-  if (name) {
+  if (nam) {
     return `Hello, ${name}`;
-  }
+  
 
   return "Hello, guest";
 }
 
 const message = brokenGreeting("Jenkins");
-console.log(mess);
+console.log(message);
